@@ -1,0 +1,73 @@
+{
+  "current_round": 10,
+  "total_rounds": 10,
+  "global_accuracy": 76.54,
+  "training_status": "completed",
+  "aggregation_status": "completed",
+  "connected_hospitals": [
+    {
+      "name": "Hospital A",
+      "local_accuracy": 79.25,
+      "patients_count": 106,
+      "training_status": "idle",
+      "sync_status": "synced"
+    },
+    {
+      "name": "Hospital B",
+      "local_accuracy": 78.3,
+      "patients_count": 106,
+      "training_status": "idle",
+      "sync_status": "synced"
+    },
+    {
+      "name": "Hospital C",
+      "local_accuracy": 83.96,
+      "patients_count": 106,
+      "training_status": "idle",
+      "sync_status": "synced"
+    }
+  ],
+  "round_history": [
+    {
+      "round": 1,
+      "accuracy": 62.96
+    },
+    {
+      "round": 2,
+      "accuracy": 71.6
+    },
+    {
+      "round": 3,
+      "accuracy": 70.37
+    },
+    {
+      "round": 4,
+      "accuracy": 72.84
+    },
+    {
+      "round": 5,
+      "accuracy": 74.07
+    },
+    {
+      "round": 6,
+      "accuracy": 74.07
+    },
+    {
+      "round": 7,
+      "accuracy": 75.31
+    },
+    {
+      "round": 8,
+      "accuracy": 75.31
+    },
+    {
+      "round": 9,
+      "accuracy": 76.54
+    },
+    {
+      "round": 10,
+      "accuracy": 76.54
+    }
+  ],
+  "timestamp": "2026-05-22T10:47:13"
+}
