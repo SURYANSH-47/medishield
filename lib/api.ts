@@ -481,3 +481,187 @@ export async function getHospitalDatasetPreview(
   }
   return response.json()
 }
+
+// ---------------------------------------------------------------------------
+// Real-Time Analytics API
+// ---------------------------------------------------------------------------
+
+export interface AnalyticsOverview {
+  total_predictions: number
+  high_risk_patients: number
+  participating_hospitals: number
+  fairness_score: number
+  global_accuracy: number
+  federated_round: number
+}
+
+export interface TrendData {
+  round: number
+  accuracy: number
+}
+
+export interface AnalyticsTrends {
+  diabetes: TrendData[]
+  heart_disease: TrendData[]
+  hypertension: TrendData[]
+}
+
+export interface HospitalContribution {
+  hospital: string
+  patients: number
+  predictions: number
+  accuracy: number
+}
+
+export interface HospitalContributionsResponse {
+  hospitals: HospitalContribution[]
+  total_patients: number
+}
+
+export interface RiskCategory {
+  name: string
+  value: number
+  color: string
+}
+
+export interface RiskDistributionResponse {
+  categories: RiskCategory[]
+}
+
+export interface AgeGroupData {
+  age: string
+  low: number
+  medium: number
+  high: number
+}
+
+export interface AgeGroupRiskResponse {
+  age_groups: AgeGroupData[]
+}
+
+export interface GenderMetric {
+  metric: string
+  male: number
+  female: number
+}
+
+export interface GenderPerformanceResponse {
+  metrics: GenderMetric[]
+}
+
+export interface FairnessGroup {
+  group: string
+  value: number
+}
+
+export interface FairnessResponse {
+  groups: FairnessGroup[]
+  overall_status: string
+}
+
+export interface ModelPerformanceResponse {
+  accuracy: number
+  precision: number
+  recall: number
+  f1_score: number
+  roc_auc: number
+  epochs: number
+  final_loss: number
+  federated_round: number
+}
+
+/**
+ * Fetch high-level analytics overview.
+ */
+export async function getAnalyticsOverview(): Promise<AnalyticsOverview> {
+  const response = await fetch(`${API_BASE_URL}/analytics/overview`, {
+    method: "GET",
+    cache: "no-store",
+  })
+  if (!response.ok) throw new Error("Failed to fetch analytics overview")
+  return response.json()
+}
+
+/**
+ * Fetch disease trend analysis data.
+ */
+export async function getAnalyticsTrends(): Promise<AnalyticsTrends> {
+  const response = await fetch(`${API_BASE_URL}/analytics/trends`, {
+    method: "GET",
+    cache: "no-store",
+  })
+  if (!response.ok) throw new Error("Failed to fetch analytics trends")
+  return response.json()
+}
+
+/**
+ * Fetch hospital contribution analytics.
+ */
+export async function getHospitalContributions(): Promise<HospitalContributionsResponse> {
+  const response = await fetch(`${API_BASE_URL}/analytics/hospital-contributions`, {
+    method: "GET",
+    cache: "no-store",
+  })
+  if (!response.ok) throw new Error("Failed to fetch hospital contributions")
+  return response.json()
+}
+
+/**
+ * Fetch patient risk distribution.
+ */
+export async function getRiskDistribution(): Promise<RiskDistributionResponse> {
+  const response = await fetch(`${API_BASE_URL}/analytics/risk-distribution`, {
+    method: "GET",
+    cache: "no-store",
+  })
+  if (!response.ok) throw new Error("Failed to fetch risk distribution")
+  return response.json()
+}
+
+/**
+ * Fetch age group risk analysis.
+ */
+export async function getAgeGroupRisk(): Promise<AgeGroupRiskResponse> {
+  const response = await fetch(`${API_BASE_URL}/analytics/age-group-risk`, {
+    method: "GET",
+    cache: "no-store",
+  })
+  if (!response.ok) throw new Error("Failed to fetch age group risk")
+  return response.json()
+}
+
+/**
+ * Fetch gender-based model performance.
+ */
+export async function getGenderPerformance(): Promise<GenderPerformanceResponse> {
+  const response = await fetch(`${API_BASE_URL}/analytics/gender-performance`, {
+    method: "GET",
+    cache: "no-store",
+  })
+  if (!response.ok) throw new Error("Failed to fetch gender performance")
+  return response.json()
+}
+
+/**
+ * Fetch fairness monitoring metrics.
+ */
+export async function getFairnessMonitoring(): Promise<FairnessResponse> {
+  const response = await fetch(`${API_BASE_URL}/analytics/fairness`, {
+    method: "GET",
+    cache: "no-store",
+  })
+  if (!response.ok) throw new Error("Failed to fetch fairness metrics")
+  return response.json()
+}
+
+/**
+ * Fetch comprehensive model performance metrics.
+ */
+export async function getModelPerformance(): Promise<ModelPerformanceResponse> {
+  const response = await fetch(`${API_BASE_URL}/analytics/model-performance`, {
+    method: "GET",
+    cache: "no-store",
+  })
+  if (!response.ok) throw new Error("Failed to fetch model performance")
+  return response.json()
+}

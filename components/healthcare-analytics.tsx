@@ -1,7 +1,8 @@
 "use client"
 
 import { motion } from "framer-motion"
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import { toast } from "sonner"
 import {
   BarChart3,
   TrendingUp,
@@ -9,9 +10,6 @@ import {
   Building2,
   AlertTriangle,
   Scale,
-  Calendar,
-  Filter,
-  Download,
   RefreshCw,
 } from "lucide-react"
 import {
@@ -36,67 +34,26 @@ import {
   PolarRadiusAxis,
   Radar,
 } from "recharts"
+import {
+  getAnalyticsOverview,
+  getAnalyticsTrends,
+  getHospitalContributions,
+  getRiskDistribution,
+  getAgeGroupRisk,
+  getGenderPerformance,
+  getFairnessMonitoring,
+  getModelPerformance,
+  type AnalyticsOverview,
+  type TrendData,
+  type HospitalContribution,
+  type RiskCategory,
+  type AgeGroupData,
+  type GenderMetric,
+  type FairnessGroup,
+  type ModelPerformanceResponse,
+} from "@/lib/api"
 
-// Disease trend data
-const diseaseTrendData = [
-  { month: "Jan", diabetes: 245, heart: 189, hypertension: 312 },
-  { month: "Feb", diabetes: 267, heart: 195, hypertension: 298 },
-  { month: "Mar", diabetes: 298, heart: 210, hypertension: 325 },
-  { month: "Apr", diabetes: 285, heart: 198, hypertension: 310 },
-  { month: "May", diabetes: 312, heart: 225, hypertension: 342 },
-  { month: "Jun", diabetes: 325, heart: 232, hypertension: 356 },
-  { month: "Jul", diabetes: 340, heart: 245, hypertension: 368 },
-  { month: "Aug", diabetes: 358, heart: 256, hypertension: 385 },
-  { month: "Sep", diabetes: 375, heart: 268, hypertension: 398 },
-  { month: "Oct", diabetes: 392, heart: 278, hypertension: 412 },
-  { month: "Nov", diabetes: 410, heart: 290, hypertension: 425 },
-  { month: "Dec", diabetes: 428, heart: 302, hypertension: 438 },
-]
-
-// Hospital contribution data
-const hospitalContribution = [
-  { hospital: "Hospital A", patients: 12500, predictions: 8450, accuracy: 94.2 },
-  { hospital: "Hospital B", patients: 9800, predictions: 6720, accuracy: 92.8 },
-  { hospital: "Hospital C", patients: 15200, predictions: 10340, accuracy: 95.1 },
-]
-
-// Age group risk data
-const ageGroupRisk = [
-  { age: "18-25", low: 85, medium: 12, high: 3 },
-  { age: "26-35", low: 72, medium: 20, high: 8 },
-  { age: "36-45", low: 58, medium: 28, high: 14 },
-  { age: "46-55", low: 42, medium: 35, high: 23 },
-  { age: "56-65", low: 28, medium: 38, high: 34 },
-  { age: "65+", low: 18, medium: 35, high: 47 },
-]
-
-// Gender comparison data
-const genderComparison = [
-  { metric: "Accuracy", male: 93.5, female: 94.8 },
-  { metric: "Precision", male: 91.2, female: 92.6 },
-  { metric: "Recall", male: 89.8, female: 91.4 },
-  { metric: "F1 Score", male: 90.5, female: 92.0 },
-  { metric: "AUC-ROC", male: 94.2, female: 95.1 },
-]
-
-// Fairness metrics
-const fairnessData = [
-  { group: "Overall", value: 94.2 },
-  { group: "Male", value: 93.5 },
-  { group: "Female", value: 94.8 },
-  { group: "Age < 40", value: 92.8 },
-  { group: "Age 40-60", value: 94.5 },
-  { group: "Age > 60", value: 93.9 },
-]
-
-// High-risk patient stats
-const highRiskStats = [
-  { name: "Critical", value: 847, color: "#ef4444" },
-  { name: "Elevated", value: 1523, color: "#f97316" },
-  { name: "Moderate", value: 2845, color: "#eab308" },
-  { name: "Low", value: 5285, color: "#22c55e" },
-]
-
+// Custom tooltip
 function CustomTooltip({ active, payload, label }: any) {
   if (!active || !payload?.length) return null
 
@@ -115,6 +72,7 @@ function CustomTooltip({ active, payload, label }: any) {
   )
 }
 
+// Stat card component
 function StatCard({
   title,
   value,
@@ -171,6 +129,90 @@ function StatCard({
 
 export function HealthcareAnalytics() {
   const [timeRange, setTimeRange] = useState("year")
+  const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
+
+  // All analytics data
+  const [overview, setOverview] = useState<AnalyticsOverview | null>(null)
+  const [trendData, setTrendData] = useState<TrendData[]>([])
+  const [hospitals, setHospitals] = useState<HospitalContribution[]>([])
+  const [riskCategories, setRiskCategories] = useState<RiskCategory[]>([])
+  const [ageGroups, setAgeGroups] = useState<AgeGroupData[]>([])
+  const [genderMetrics, setGenderMetrics] = useState<GenderMetric[]>([])
+  const [fairnessGroups, setFairnessGroups] = useState<FairnessGroup[]>([])
+  const [modelPerf, setModelPerf] = useState<ModelPerformanceResponse | null>(null)
+
+  // Load all analytics data
+  const loadAnalytics = async () => {
+    try {
+      const [
+        overviewData,
+        trendsData,
+        hospitalsData,
+        riskData,
+        ageData,
+        genderData,
+        fairnessData,
+        perfData,
+      ] = await Promise.all([
+        getAnalyticsOverview(),
+        getAnalyticsTrends(),
+        getHospitalContributions(),
+        getRiskDistribution(),
+        getAgeGroupRisk(),
+        getGenderPerformance(),
+        getFairnessMonitoring(),
+        getModelPerformance(),
+      ])
+
+      setOverview(overviewData)
+      setTrendData(trendsData.diabetes || [])
+      setHospitals(hospitalsData.hospitals || [])
+      setRiskCategories(riskData.categories || [])
+      setAgeGroups(ageData.age_groups || [])
+      setGenderMetrics(genderData.metrics || [])
+      setFairnessGroups(fairnessData.groups || [])
+      setModelPerf(perfData)
+    } catch (err) {
+      console.error("Failed to load analytics:", err)
+      toast.error("Failed to load analytics data")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    loadAnalytics()
+
+    // Auto-refresh every 10 seconds
+    const interval = setInterval(() => {
+      loadAnalytics()
+    }, 10000)
+
+    return () => clearInterval(interval)
+  }, [])
+
+  const handleRefresh = async () => {
+    setRefreshing(true)
+    await loadAnalytics()
+    setRefreshing(false)
+    toast.success("Analytics updated")
+  }
+
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh]">
+        <motion.div
+          animate={{ rotate: 360 }}
+          transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
+          className="w-14 h-14 rounded-full border-2 border-t-transparent border-primary mb-4"
+        />
+        <p className="text-muted-foreground text-sm animate-pulse">
+          Loading analytics…
+        </p>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-8">
@@ -190,7 +232,7 @@ export function HealthcareAnalytics() {
             </h1>
           </div>
           <p className="text-muted-foreground">
-            Enterprise-grade insights across the federated network
+            Live federated AI monitoring system
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -204,52 +246,51 @@ export function HealthcareAnalytics() {
             <option value="quarter">Last Quarter</option>
             <option value="year">Last Year</option>
           </select>
-          <button className="flex items-center gap-2 px-4 py-2 rounded-lg glass hover:bg-secondary/50 transition-all text-foreground">
-            <Filter className="h-4 w-4" />
-            Filter
-          </button>
-          <button className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-all">
-            <Download className="h-4 w-4" />
-            Export
+          <button
+            onClick={handleRefresh}
+            disabled={refreshing}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-all disabled:opacity-50"
+          >
+            <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
+            Refresh
           </button>
         </div>
       </motion.div>
 
       {/* Top Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard
-          title="Total Predictions"
-          value="25,510"
-          icon={BarChart3}
-          trend={{ value: 12.5, positive: true }}
-          description="Predictions made this period"
-          delay={0}
-        />
-        <StatCard
-          title="High-Risk Patients"
-          value="2,370"
-          icon={AlertTriangle}
-          trend={{ value: 3.2, positive: false }}
-          description="Requiring immediate attention"
-          delay={0.1}
-        />
-        <StatCard
-          title="Network Hospitals"
-          value="3"
-          icon={Building2}
-          description="Active in federated network"
-          delay={0.2}
-        />
-        <StatCard
-          title="Fairness Score"
-          value="94.2"
-          suffix="%"
-          icon={Scale}
-          trend={{ value: 1.8, positive: true }}
-          description="Model bias assessment"
-          delay={0.3}
-        />
-      </div>
+      {overview && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <StatCard
+            title="Total Predictions"
+            value={overview.total_predictions.toLocaleString()}
+            icon={BarChart3}
+            description="Predictions made across network"
+            delay={0}
+          />
+          <StatCard
+            title="High-Risk Patients"
+            value={overview.high_risk_patients.toLocaleString()}
+            icon={AlertTriangle}
+            description="Requiring immediate attention"
+            delay={0.1}
+          />
+          <StatCard
+            title="Network Hospitals"
+            value={overview.participating_hospitals}
+            icon={Building2}
+            description="Active in federated network"
+            delay={0.2}
+          />
+          <StatCard
+            title="Fairness Score"
+            value={overview.fairness_score}
+            suffix="%"
+            icon={Scale}
+            description="Model bias assessment"
+            delay={0.3}
+          />
+        </div>
+      )}
 
       {/* Disease Trends Chart */}
       <motion.div
@@ -262,84 +303,58 @@ export function HealthcareAnalytics() {
           <div>
             <h3 className="font-semibold text-foreground">Disease Trend Analysis</h3>
             <p className="text-sm text-muted-foreground">
-              High-risk patient identification over time
+              Model accuracy evolution across federated rounds
             </p>
           </div>
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2">
               <span className="h-3 w-3 rounded-full bg-chart-1" />
-              <span className="text-xs text-muted-foreground">Diabetes</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="h-3 w-3 rounded-full bg-chart-2" />
-              <span className="text-xs text-muted-foreground">Heart Disease</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="h-3 w-3 rounded-full bg-chart-3" />
-              <span className="text-xs text-muted-foreground">Hypertension</span>
+              <span className="text-xs text-muted-foreground">Accuracy</span>
             </div>
           </div>
         </div>
         <div className="h-80">
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={diseaseTrendData}>
-              <defs>
-                <linearGradient id="diabetesGradient" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#22d3ee" stopOpacity={0.3} />
-                  <stop offset="95%" stopColor="#22d3ee" stopOpacity={0} />
-                </linearGradient>
-                <linearGradient id="heartGradient" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#2dd4bf" stopOpacity={0.3} />
-                  <stop offset="95%" stopColor="#2dd4bf" stopOpacity={0} />
-                </linearGradient>
-                <linearGradient id="hyperGradient" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#818cf8" stopOpacity={0.3} />
-                  <stop offset="95%" stopColor="#818cf8" stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-              <XAxis
-                dataKey="month"
-                stroke="rgba(255,255,255,0.5)"
-                tick={{ fill: "rgba(255,255,255,0.5)", fontSize: 12 }}
-              />
-              <YAxis
-                stroke="rgba(255,255,255,0.5)"
-                tick={{ fill: "rgba(255,255,255,0.5)", fontSize: 12 }}
-              />
-              <Tooltip content={<CustomTooltip />} />
-              <Area
-                type="monotone"
-                dataKey="diabetes"
-                stroke="#22d3ee"
-                strokeWidth={2}
-                fill="url(#diabetesGradient)"
-                name="Diabetes"
-              />
-              <Area
-                type="monotone"
-                dataKey="heart"
-                stroke="#2dd4bf"
-                strokeWidth={2}
-                fill="url(#heartGradient)"
-                name="Heart Disease"
-              />
-              <Area
-                type="monotone"
-                dataKey="hypertension"
-                stroke="#818cf8"
-                strokeWidth={2}
-                fill="url(#hyperGradient)"
-                name="Hypertension"
-              />
-            </AreaChart>
-          </ResponsiveContainer>
+          {trendData.length > 0 ? (
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={trendData}>
+                <defs>
+                  <linearGradient id="accuracyGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#22d3ee" stopOpacity={0.3} />
+                    <stop offset="95%" stopColor="#22d3ee" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+                <XAxis
+                  dataKey="round"
+                  stroke="rgba(255,255,255,0.5)"
+                  tick={{ fill: "rgba(255,255,255,0.5)", fontSize: 12 }}
+                />
+                <YAxis
+                  stroke="rgba(255,255,255,0.5)"
+                  tick={{ fill: "rgba(255,255,255,0.5)", fontSize: 12 }}
+                />
+                <Tooltip content={<CustomTooltip />} />
+                <Area
+                  type="monotone"
+                  dataKey="accuracy"
+                  stroke="#22d3ee"
+                  strokeWidth={2}
+                  fill="url(#accuracyGradient)"
+                  name="Accuracy"
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="flex items-center justify-center h-full text-muted-foreground">
+              No trend data available
+            </div>
+          )}
         </div>
       </motion.div>
 
       {/* Two Column Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* High-Risk Patient Distribution */}
+        {/* Risk Distribution */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -350,27 +365,31 @@ export function HealthcareAnalytics() {
             Patient Risk Distribution
           </h3>
           <div className="h-64 flex items-center justify-center">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={highRiskStats}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={60}
-                  outerRadius={90}
-                  paddingAngle={5}
-                  dataKey="value"
-                >
-                  {highRiskStats.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip content={<CustomTooltip />} />
-              </PieChart>
-            </ResponsiveContainer>
+            {riskCategories.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={riskCategories}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={60}
+                    outerRadius={90}
+                    paddingAngle={5}
+                    dataKey="value"
+                  >
+                    {riskCategories.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip content={<CustomTooltip />} />
+                </PieChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="text-muted-foreground">No risk data available</div>
+            )}
           </div>
           <div className="grid grid-cols-2 gap-4 mt-4">
-            {highRiskStats.map((item) => (
+            {riskCategories.map((item) => (
               <div key={item.name} className="flex items-center gap-2">
                 <span
                   className="h-3 w-3 rounded-full"
@@ -395,23 +414,29 @@ export function HealthcareAnalytics() {
             Hospital Contribution Analytics
           </h3>
           <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={hospitalContribution}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-                <XAxis
-                  dataKey="hospital"
-                  stroke="rgba(255,255,255,0.5)"
-                  tick={{ fill: "rgba(255,255,255,0.5)", fontSize: 12 }}
-                />
-                <YAxis
-                  stroke="rgba(255,255,255,0.5)"
-                  tick={{ fill: "rgba(255,255,255,0.5)", fontSize: 12 }}
-                />
-                <Tooltip content={<CustomTooltip />} />
-                <Bar dataKey="patients" name="Patients" fill="#22d3ee" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="predictions" name="Predictions" fill="#2dd4bf" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+            {hospitals.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={hospitals}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+                  <XAxis
+                    dataKey="hospital"
+                    stroke="rgba(255,255,255,0.5)"
+                    tick={{ fill: "rgba(255,255,255,0.5)", fontSize: 12 }}
+                  />
+                  <YAxis
+                    stroke="rgba(255,255,255,0.5)"
+                    tick={{ fill: "rgba(255,255,255,0.5)", fontSize: 12 }}
+                  />
+                  <Tooltip content={<CustomTooltip />} />
+                  <Bar dataKey="patients" name="Patients" fill="#22d3ee" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="predictions" name="Predictions" fill="#2dd4bf" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex items-center justify-center h-full text-muted-foreground">
+                No hospital data available
+              </div>
+            )}
           </div>
           <div className="flex items-center justify-center gap-8 mt-4">
             <div className="flex items-center gap-2">
@@ -428,7 +453,7 @@ export function HealthcareAnalytics() {
 
       {/* Age Group Risk & Gender Comparison */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Age Group Risk Analysis */}
+        {/* Age Group Risk */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -439,24 +464,30 @@ export function HealthcareAnalytics() {
             Age Group Risk Analysis
           </h3>
           <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={ageGroupRisk}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-                <XAxis
-                  dataKey="age"
-                  stroke="rgba(255,255,255,0.5)"
-                  tick={{ fill: "rgba(255,255,255,0.5)", fontSize: 12 }}
-                />
-                <YAxis
-                  stroke="rgba(255,255,255,0.5)"
-                  tick={{ fill: "rgba(255,255,255,0.5)", fontSize: 12 }}
-                />
-                <Tooltip content={<CustomTooltip />} />
-                <Bar dataKey="low" name="Low Risk" stackId="a" fill="#22c55e" />
-                <Bar dataKey="medium" name="Medium Risk" stackId="a" fill="#eab308" />
-                <Bar dataKey="high" name="High Risk" stackId="a" fill="#ef4444" />
-              </BarChart>
-            </ResponsiveContainer>
+            {ageGroups.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={ageGroups}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+                  <XAxis
+                    dataKey="age"
+                    stroke="rgba(255,255,255,0.5)"
+                    tick={{ fill: "rgba(255,255,255,0.5)", fontSize: 12 }}
+                  />
+                  <YAxis
+                    stroke="rgba(255,255,255,0.5)"
+                    tick={{ fill: "rgba(255,255,255,0.5)", fontSize: 12 }}
+                  />
+                  <Tooltip content={<CustomTooltip />} />
+                  <Bar dataKey="low" name="Low Risk" stackId="a" fill="#22c55e" />
+                  <Bar dataKey="medium" name="Medium Risk" stackId="a" fill="#eab308" />
+                  <Bar dataKey="high" name="High Risk" stackId="a" fill="#ef4444" />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex items-center justify-center h-full text-muted-foreground">
+                No age group data available
+              </div>
+            )}
           </div>
           <div className="flex items-center justify-center gap-6 mt-4">
             <div className="flex items-center gap-2">
@@ -474,7 +505,7 @@ export function HealthcareAnalytics() {
           </div>
         </motion.div>
 
-        {/* Gender-Based Model Comparison */}
+        {/* Gender Performance */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -485,35 +516,41 @@ export function HealthcareAnalytics() {
             Gender-Based Model Performance
           </h3>
           <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <RadarChart data={genderComparison}>
-                <PolarGrid stroke="rgba(255,255,255,0.1)" />
-                <PolarAngleAxis
-                  dataKey="metric"
-                  tick={{ fill: "rgba(255,255,255,0.5)", fontSize: 11 }}
-                />
-                <PolarRadiusAxis
-                  angle={30}
-                  domain={[85, 100]}
-                  tick={{ fill: "rgba(255,255,255,0.5)", fontSize: 10 }}
-                />
-                <Radar
-                  name="Male"
-                  dataKey="male"
-                  stroke="#22d3ee"
-                  fill="#22d3ee"
-                  fillOpacity={0.3}
-                />
-                <Radar
-                  name="Female"
-                  dataKey="female"
-                  stroke="#f472b6"
-                  fill="#f472b6"
-                  fillOpacity={0.3}
-                />
-                <Tooltip content={<CustomTooltip />} />
-              </RadarChart>
-            </ResponsiveContainer>
+            {genderMetrics.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <RadarChart data={genderMetrics}>
+                  <PolarGrid stroke="rgba(255,255,255,0.1)" />
+                  <PolarAngleAxis
+                    dataKey="metric"
+                    tick={{ fill: "rgba(255,255,255,0.5)", fontSize: 11 }}
+                  />
+                  <PolarRadiusAxis
+                    angle={30}
+                    domain={[85, 100]}
+                    tick={{ fill: "rgba(255,255,255,0.5)", fontSize: 10 }}
+                  />
+                  <Radar
+                    name="Male"
+                    dataKey="male"
+                    stroke="#22d3ee"
+                    fill="#22d3ee"
+                    fillOpacity={0.3}
+                  />
+                  <Radar
+                    name="Female"
+                    dataKey="female"
+                    stroke="#f472b6"
+                    fill="#f472b6"
+                    fillOpacity={0.3}
+                  />
+                  <Tooltip content={<CustomTooltip />} />
+                </RadarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex items-center justify-center h-full text-muted-foreground">
+                No gender data available
+              </div>
+            )}
           </div>
           <div className="flex items-center justify-center gap-8 mt-4">
             <div className="flex items-center gap-2">
@@ -548,7 +585,7 @@ export function HealthcareAnalytics() {
           </span>
         </div>
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-          {fairnessData.map((item, index) => (
+          {fairnessGroups.map((item, index) => (
             <motion.div
               key={item.group}
               initial={{ opacity: 0, scale: 0.9 }}
@@ -570,6 +607,48 @@ export function HealthcareAnalytics() {
           ))}
         </div>
       </motion.div>
+
+      {/* Model Performance Summary */}
+      {modelPerf && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 1 }}
+          className="glass-card rounded-2xl p-6"
+        >
+          <h3 className="font-semibold text-foreground mb-4">Model Performance Metrics</h3>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+            {[
+              { label: "Accuracy", value: modelPerf.accuracy },
+              { label: "Precision", value: modelPerf.precision },
+              { label: "Recall", value: modelPerf.recall },
+              { label: "F1 Score", value: modelPerf.f1_score },
+              { label: "ROC-AUC", value: modelPerf.roc_auc },
+            ].map((metric) => (
+              <div key={metric.label} className="text-center">
+                <div className="text-2xl font-bold text-primary mb-1">
+                  {metric.value}%
+                </div>
+                <div className="text-xs text-muted-foreground">{metric.label}</div>
+              </div>
+            ))}
+          </div>
+          <div className="mt-4 flex items-center justify-center gap-8 text-sm">
+            <div>
+              <span className="text-muted-foreground">Federated Round: </span>
+              <span className="font-semibold">{modelPerf.federated_round}</span>
+            </div>
+            <div>
+              <span className="text-muted-foreground">Final Loss: </span>
+              <span className="font-semibold">{modelPerf.final_loss}</span>
+            </div>
+            <div>
+              <span className="text-muted-foreground">Epochs: </span>
+              <span className="font-semibold">{modelPerf.epochs}</span>
+            </div>
+          </div>
+        </motion.div>
+      )}
     </div>
   )
 }
