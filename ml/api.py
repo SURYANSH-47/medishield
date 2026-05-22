@@ -1849,6 +1849,382 @@ def _record_analytics_round():
     except Exception as e:
         print(f"[api] Error recording analytics: {e}")
 
+# =============================================================================
+# AI CLINICAL EMERGENCY SUPPORT ASSISTANT — POST /clinical-support
+# =============================================================================
+# Clinical decision-support layer that generates dynamic, patient-specific
+# nursing recommendations after every prediction. NOT a diagnostic system.
+# Acts as nurse assistance and clinical decision-support guidance only.
+# =============================================================================
+
+class ClinicalSupportRequest(BaseModel):
+    """Input for the Clinical Support AI engine."""
+    risk_score: float                          # 0.0–1.0
+    risk_level: str                            # LOW / MEDIUM / HIGH
+    top_factors: List[str]                     # SHAP top features
+    shap_values_dict: Optional[Dict[str, float]] = None  # raw SHAP dict
+    # Patient values
+    glucose: float
+    bmi: float
+    blood_pressure: float
+    age: float
+    insulin: float
+    pregnancies: float = 0.0
+    # Federated info (optional)
+    federated_round: Optional[int] = None
+    global_accuracy: Optional[float] = None
+
+
+class ClinicalSupportResponse(BaseModel):
+    """Structured clinical recommendations returned by the support engine."""
+    severity_level: str                    # LOW / MEDIUM / HIGH / CRITICAL
+    emergency_priority: str                # ROUTINE / ELEVATED / URGENT / EMERGENCY
+    ai_summary: str                        # Natural-language explanation
+    recommendations: List[str]             # Immediate action items
+    monitoring_checklist: List[str]        # Ongoing monitoring tasks
+    escalation_criteria: List[str]         # Warning signs to watch
+    next_steps: List[str]                  # Suggested workflow steps
+    primary_contributors: List[str]        # Human-readable factor labels
+    federated_note: str                    # Attribution string
+    disclaimer: str                        # Liability disclaimer
+
+
+def _classify_severity(risk_score: float) -> str:
+    """Map continuous risk score to 4-tier clinical severity."""
+    if risk_score >= 0.85:
+        return "CRITICAL"
+    elif risk_score >= 0.65:
+        return "HIGH"
+    elif risk_score >= 0.40:
+        return "MEDIUM"
+    return "LOW"
+
+
+def _build_clinical_support(req: ClinicalSupportRequest) -> dict:
+    """
+    Dynamic clinical recommendation engine.
+
+    Applies condition-specific rules based on patient vitals and SHAP
+    attribution, then merges with risk-tier base protocols.
+    Returns a fully structured clinical support payload.
+    """
+    severity = _classify_severity(req.risk_score)
+    glucose    = req.glucose
+    bmi        = req.bmi
+    bp         = req.blood_pressure
+    age        = req.age
+    insulin    = req.insulin
+    top_factors = [f.lower() for f in (req.top_factors or [])]
+
+    # ── Priority mapping ──────────────────────────────────────────────────────
+    priority_map = {
+        "LOW":      "ROUTINE",
+        "MEDIUM":   "ELEVATED",
+        "HIGH":     "URGENT",
+        "CRITICAL": "EMERGENCY",
+    }
+    emergency_priority = priority_map[severity]
+
+    # ── Base protocol by severity tier ────────────────────────────────────────
+    base_recommendations: List[str] = []
+    base_monitoring: List[str] = []
+    base_escalation: List[str] = []
+    base_next_steps: List[str] = []
+
+    if severity == "LOW":
+        base_recommendations = [
+            "Continue routine wellness monitoring protocol",
+            "Encourage regular physical activity (150 min/week moderate intensity)",
+            "Reinforce balanced dietary habits — Mediterranean or DASH diet recommended",
+            "Schedule follow-up in 6–12 months",
+        ]
+        base_monitoring = [
+            "Record fasting blood glucose monthly",
+            "Monitor weight and BMI quarterly",
+            "Track blood pressure at routine check-ups",
+            "Annual HbA1c screening recommended",
+        ]
+        base_escalation = [
+            "Sudden unexplained weight loss",
+            "Persistent excessive thirst or urination",
+            "Blurred vision or fatigue without explanation",
+        ]
+        base_next_steps = [
+            "Document current vitals in patient record",
+            "Provide patient with lifestyle guidance materials",
+            "Schedule next routine appointment",
+        ]
+
+    elif severity == "MEDIUM":
+        base_recommendations = [
+            "Advise physician review within 48–72 hours",
+            "Begin periodic glucose monitoring — check fasting glucose every 3 days",
+            "Initiate structured diet counselling referral",
+            "Educate patient on early diabetes warning signs",
+            "Review current medications for metabolic interactions",
+        ]
+        base_monitoring = [
+            "Monitor fasting blood glucose every 72 hours",
+            "Record blood pressure twice weekly",
+            "Check BMI trend monthly",
+            "Review insulin response at next consultation",
+            "Monitor for signs of pre-diabetic progression",
+        ]
+        base_escalation = [
+            "Fasting glucose exceeds 126 mg/dL on two consecutive readings",
+            "Sudden spike in blood pressure (>160 mmHg systolic)",
+            "Unexplained fatigue, dizziness, or confusion",
+            "Significant weight change (>5 kg in 30 days)",
+        ]
+        base_next_steps = [
+            "Flag patient chart for physician review",
+            "Schedule glucose tolerance test if not recently completed",
+            "Initiate nutrition counselling referral",
+            "Provide patient education on glycemic control",
+        ]
+
+    elif severity == "HIGH":
+        base_recommendations = [
+            "🔴 URGENT: Request immediate physician evaluation",
+            "Initiate diabetic management protocol per hospital guidelines",
+            "Place patient under close clinical observation",
+            "Prepare insulin administration workflow if prescribed",
+            "Ensure IV access availability for emergency interventions",
+            "Document all vitals with timestamps — initiate observation log",
+        ]
+        base_monitoring = [
+            "Monitor blood glucose every 30 minutes",
+            "Record blood pressure and pulse every 15 minutes",
+            "Observe for signs of diabetic ketoacidosis (DKA)",
+            "Track fluid intake and output",
+            "Continuous oxygen saturation monitoring",
+            "Monitor for cardiac arrhythmia signs",
+        ]
+        base_escalation = [
+            "Blood glucose >300 mg/dL — escalate immediately",
+            "Systolic BP >180 mmHg — notify physician stat",
+            "Loss of consciousness or altered mental status",
+            "Chest pain or shortness of breath",
+            "Oxygen saturation drops below 92%",
+            "Severe dehydration or vomiting",
+        ]
+        base_next_steps = [
+            "Notify attending physician — HIGH risk flag activated",
+            "Prepare crash cart and emergency medications nearby",
+            "Review patient's known allergies and current medications",
+            "Initiate diabetic emergency observation protocol",
+            "Consider ICU or HDU step-up if condition deteriorates",
+        ]
+
+    else:  # CRITICAL
+        base_recommendations = [
+            "🚨 CRITICAL EMERGENCY: Activate rapid response team NOW",
+            "Initiate continuous cardiac and glucose monitoring",
+            "Alert on-call physician and duty intensivist immediately",
+            "Prepare for possible ICU transfer",
+            "Administer IV access — prepare emergency glucose/insulin protocols",
+            "Do NOT leave patient unattended",
+            "Initiate hospital emergency escalation pathway",
+        ]
+        base_monitoring = [
+            "Continuous cardiac monitoring (ECG)",
+            "Blood glucose every 10 minutes until stabilised",
+            "Continuous SpO2 and respiratory rate monitoring",
+            "Blood pressure every 5 minutes",
+            "Urine output hourly",
+            "Neurological status checks every 15 minutes",
+            "Core temperature monitoring",
+        ]
+        base_escalation = [
+            "Blood glucose >400 mg/dL — DKA protocol immediately",
+            "Any alteration in consciousness or orientation",
+            "Respiratory distress or SpO2 <88% — oxygen therapy stat",
+            "Systolic BP <90 or >200 mmHg",
+            "Severe chest pain — cardiac emergency protocol",
+            "Seizure activity",
+            "Anuria or severe oliguria",
+        ]
+        base_next_steps = [
+            "🚨 ACTIVATE RAPID RESPONSE TEAM IMMEDIATELY",
+            "Alert senior nurse and on-call physician STAT",
+            "Prepare ICU transfer documentation",
+            "Initiate emergency insulin protocol if prescribed",
+            "Contact family/next-of-kin",
+            "Document all interventions with precise timestamps",
+        ]
+
+    # ── Condition-specific additive rules ────────────────────────────────────
+    condition_recs: List[str] = []
+    condition_monitoring: List[str] = []
+    condition_factors: List[str] = []
+
+    # Glucose rules
+    if glucose > 250:
+        condition_recs.append("⚠️ Severely elevated glucose detected (>250 mg/dL) — hyperglycaemic crisis risk: check ketones immediately")
+        condition_monitoring.append("Serum ketone measurement — perform now")
+        condition_factors.append("Severely Elevated Glucose (Hyperglycaemia Risk)")
+    elif glucose > 180:
+        condition_recs.append("Elevated fasting glucose (>180 mg/dL) — monitor for hyperglycaemia signs: excessive thirst, frequent urination")
+        condition_monitoring.append("Blood glucose recheck in 30 minutes")
+        condition_factors.append("Elevated Glucose Level")
+    elif glucose > 126:
+        condition_recs.append("Above-normal glucose reading (>126 mg/dL) — initiate dietary review and glycaemic monitoring")
+        condition_factors.append("Above-Threshold Glucose")
+
+    # BMI rules
+    if bmi > 40:
+        condition_recs.append("Severe obesity (BMI >40) — increased cardiovascular and metabolic risk: bariatric consult recommended")
+        condition_monitoring.append("Monitor for obesity hypoventilation syndrome")
+        condition_factors.append("Severe Obesity (BMI >40)")
+    elif bmi > 35:
+        condition_recs.append("Obesity-linked metabolic risk (BMI >35) — recommend structured weight management programme")
+        condition_factors.append("Obesity-Linked BMI")
+    elif bmi > 30:
+        condition_recs.append("Overweight classification (BMI >30) — advise dietary modification and supervised exercise programme")
+        condition_factors.append("Elevated BMI")
+
+    # Blood pressure rules
+    if bp > 180:
+        condition_recs.append("🔴 Hypertensive crisis detected (BP >180 mmHg) — immediate antihypertensive intervention required")
+        condition_monitoring.append("Blood pressure re-measurement every 5 minutes until controlled")
+        condition_factors.append("Hypertensive Crisis")
+    elif bp > 140:
+        condition_recs.append("Elevated blood pressure observed (>140 mmHg) — hypertension monitoring protocol: track every 15 minutes")
+        condition_monitoring.append("Serial blood pressure readings — log every 15 minutes")
+        condition_factors.append("Hypertension Detected")
+    elif bp > 130:
+        condition_recs.append("Stage 1 hypertension range (>130 mmHg) — review antihypertensive medication compliance")
+        condition_factors.append("Elevated Blood Pressure")
+
+    # Age rules
+    if age > 75:
+        condition_recs.append("Geriatric high-risk profile (age >75) — apply enhanced fall prevention and delirium monitoring protocols")
+        condition_monitoring.append("Cognitive function assessment — Glasgow Coma Scale every 4 hours")
+        condition_factors.append("Geriatric High-Risk Age Group")
+    elif age > 60:
+        condition_recs.append("Increased monitoring frequency recommended for patients over 60 — co-morbidity assessment advised")
+        condition_factors.append("Age-Related Metabolic Risk (>60)")
+    elif age > 50:
+        condition_factors.append("Middle-Age Metabolic Risk Factor")
+
+    # Insulin rules
+    if insulin > 300:
+        condition_recs.append("Extremely elevated insulin level (>300 μU/mL) — evaluate for insulinoma or insulin resistance syndrome")
+        condition_monitoring.append("C-peptide levels and fasting insulin ratio monitoring")
+        condition_factors.append("Severe Hyperinsulinaemia")
+    elif insulin > 200:
+        condition_recs.append("High serum insulin detected (>200 μU/mL) — assess for significant insulin resistance")
+        condition_factors.append("Elevated Insulin Level")
+
+    # SHAP-dominant factor explanations
+    shap_insight_notes: List[str] = []
+    for factor in req.top_factors[:3]:
+        fl = factor.lower()
+        if "glucose" in fl:
+            shap_insight_notes.append("Glucose Level was identified as the primary AI driver — glycaemic control is the highest-priority intervention")
+        elif "bmi" in fl:
+            shap_insight_notes.append("BMI was identified as the primary AI driver — weight management is critical to reducing risk trajectory")
+        elif "age" in fl:
+            shap_insight_notes.append("Age was identified as the primary AI driver — age-related metabolic decline requires enhanced monitoring frequency")
+        elif "blood pressure" in fl or "bp" in fl:
+            shap_insight_notes.append("Blood Pressure was identified as the primary AI driver — hypertension management is the priority clinical action")
+        elif "insulin" in fl:
+            shap_insight_notes.append("Insulin was identified as the primary AI driver — insulin resistance or secretion abnormality requires endocrinology review")
+        elif "pregnancies" in fl:
+            shap_insight_notes.append("Pregnancy history was flagged as a contributing AI driver — assess for gestational diabetes history")
+
+    # ── Merge base + condition-specific ──────────────────────────────────────
+    final_recs = base_recommendations + condition_recs
+    final_monitoring = base_monitoring + condition_monitoring
+    final_factors = condition_factors if condition_factors else [f for f in req.top_factors[:3]]
+
+    # ── Natural-language AI summary ───────────────────────────────────────────
+    factor_text = ", ".join(final_factors[:3]) if final_factors else "multiple clinical risk indicators"
+    score_pct = round(req.risk_score * 100, 1)
+
+    if severity == "CRITICAL":
+        ai_summary = (
+            f"CRITICAL ALERT: This patient presents with a {score_pct}% predicted diabetes risk, "
+            f"primarily driven by {factor_text}. "
+            f"Immediate emergency clinical intervention is required. "
+            f"Activate rapid response protocols and notify the attending physician without delay. "
+            f"This assessment is based on the latest federated global model."
+        )
+    elif severity == "HIGH":
+        ai_summary = (
+            f"The patient is assessed as HIGH risk ({score_pct}% predicted probability), "
+            f"primarily due to {factor_text}. "
+            f"Immediate physician review and initiation of diabetic management protocols are strongly recommended. "
+            f"Close observation and frequent vital sign monitoring should begin immediately."
+        )
+    elif severity == "MEDIUM":
+        ai_summary = (
+            f"The patient presents with moderate diabetes risk ({score_pct}% predicted probability), "
+            f"with key contributing factors including {factor_text}. "
+            f"A physician review within 48–72 hours is advised, along with structured glucose and vital sign monitoring."
+        )
+    else:
+        ai_summary = (
+            f"The patient currently demonstrates a low diabetes risk profile ({score_pct}% predicted probability). "
+            f"Routine wellness monitoring and lifestyle optimisation are recommended. "
+            f"Periodic screening should continue on a standard schedule."
+        )
+
+    # Append SHAP insights to summary
+    if shap_insight_notes:
+        ai_summary += " " + shap_insight_notes[0]
+
+    # ── Federated attribution ──────────────────────────────────────────────────
+    fed_round   = req.federated_round or 1
+    fed_acc     = f"{req.global_accuracy:.1f}%" if req.global_accuracy else "N/A"
+    federated_note = (
+        f"This recommendation was generated using the latest federated global model. "
+        f"Federated Round: #{fed_round} | Global Model Accuracy: {fed_acc}."
+    )
+
+    disclaimer = (
+        "⚠️ CLINICAL DECISION SUPPORT ONLY: This AI assistant provides nurse guidance and "
+        "decision-support recommendations. It is NOT a medical diagnosis and does NOT replace "
+        "clinical judgment. All actions must be validated by a licensed healthcare professional."
+    )
+
+    return {
+        "severity_level":       severity,
+        "emergency_priority":   emergency_priority,
+        "ai_summary":           ai_summary,
+        "recommendations":      final_recs,
+        "monitoring_checklist": final_monitoring,
+        "escalation_criteria":  base_escalation,
+        "next_steps":           base_next_steps,
+        "primary_contributors": final_factors,
+        "federated_note":       federated_note,
+        "disclaimer":           disclaimer,
+    }
+
+
+@app.post("/clinical-support", response_model=ClinicalSupportResponse)
+def clinical_support(req: ClinicalSupportRequest):
+    """
+    POST /clinical-support
+
+    AI Clinical Emergency Support Assistant endpoint.
+    Accepts prediction output + patient vitals + SHAP factors.
+    Returns structured clinical recommendations for nursing staff.
+
+    This is a clinical decision-support tool — NOT a diagnostic system.
+    All recommendations require validation by a licensed healthcare professional.
+    """
+    try:
+        result = _build_clinical_support(req)
+        return ClinicalSupportResponse(**result)
+    except Exception as e:
+        print(f"[clinical-support] Error: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Clinical support engine error: {str(e)}"
+        )
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Entry point
 # ─────────────────────────────────────────────────────────────────────────────

@@ -665,3 +665,71 @@ export async function getModelPerformance(): Promise<ModelPerformanceResponse> {
   if (!response.ok) throw new Error("Failed to fetch model performance")
   return response.json()
 }
+
+// ---------------------------------------------------------------------------
+// AI Clinical Emergency Support Assistant — POST /clinical-support
+// ---------------------------------------------------------------------------
+
+/** Request body for the Clinical Support AI engine */
+export interface ClinicalSupportRequest {
+  risk_score: number
+  risk_level: string
+  top_factors: string[]
+  shap_values_dict?: Record<string, number>
+  // Patient values
+  glucose: number
+  bmi: number
+  blood_pressure: number
+  age: number
+  insulin: number
+  pregnancies?: number
+  // Federated context (optional)
+  federated_round?: number
+  global_accuracy?: number
+}
+
+/** Structured clinical recommendations returned by the support engine */
+export interface ClinicalSupportResponse {
+  severity_level: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL"
+  emergency_priority: "ROUTINE" | "ELEVATED" | "URGENT" | "EMERGENCY"
+  ai_summary: string
+  recommendations: string[]
+  monitoring_checklist: string[]
+  escalation_criteria: string[]
+  next_steps: string[]
+  primary_contributors: string[]
+  federated_note: string
+  disclaimer: string
+}
+
+/**
+ * Call the Clinical Support AI engine.
+ * Returns structured nursing/clinical recommendations for the given prediction.
+ */
+export async function getClinicalSupport(
+  data: ClinicalSupportRequest
+): Promise<ClinicalSupportResponse> {
+  const response = await fetchWithRetry(`${API_BASE_URL}/clinical-support`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  })
+
+  if (!response.ok) {
+    let detail: string | undefined
+    try {
+      const body = await response.json()
+      detail = body.detail || body.error || JSON.stringify(body)
+    } catch {
+      detail = response.statusText
+    }
+    throw new MediShieldApiError(
+      `Clinical support failed (${response.status})`,
+      response.status,
+      detail
+    )
+  }
+
+  return response.json()
+}
+
