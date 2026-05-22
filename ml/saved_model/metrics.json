@@ -1,17 +1,17 @@
 {
-  "accuracy": 72.8395,
-  "test_accuracy": 72.8395,
-  "train_accuracy": 72.6708,
-  "final_loss": 0.5138,
+  "accuracy": 67.4699,
+  "test_accuracy": 67.4699,
+  "train_accuracy": 73.3333,
+  "final_loss": 0.5345,
   "epochs": 50,
-  "federated_round": 10,
-  "patient_count": 403,
+  "federated_round": 11,
+  "patient_count": 413,
   "hospital_counts": {
-    "Hospital A": 133,
-    "Hospital B": 134,
-    "Hospital C": 133
+    "Hospital A": 141,
+    "Hospital B": 139,
+    "Hospital C": 134
   },
-  "last_trained": "2026-05-22T18:47:00.346111+00:00",
+  "last_trained": "2026-05-22T21:04:00.808029+00:00",
   "model_loaded": true,
   "is_training": false,
   "history": [
@@ -50,6 +50,10 @@
     {
       "round": 10,
       "accuracy": 72.84
+    },
+    {
+      "round": 11,
+      "accuracy": 67.47
     }
   ]
 }

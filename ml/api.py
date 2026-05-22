@@ -1156,15 +1156,15 @@ def hospital_stats(hospital_id: str):
     ev   = _evaluate_dataset(cfg["csv_path"])
     lm   = _get_hospital_local_metrics(hospital_id)
     return {
-        "hospital_id":  hospital_id,
-        "name":         cfg["name"],
-        "full_name":    cfg["full_name"],
-        "specialty":    cfg["specialty"],
-        "accuracy":     lm.get("accuracy", ev["accuracy"]),
-        "patients":     ev["count"],
-        "high_risk":    ev["high_risk"],
-        "is_training":  _hospital_is_training.get(hospital_id, False),
-        "last_trained": lm.get("last_trained"),
+        "hospital_id":    hospital_id,
+        "hospital_name":  cfg["name"],
+        "full_name":      cfg["full_name"],
+        "specialty":      cfg["specialty"],
+        "patient_count":  ev["count"],
+        "local_accuracy": lm.get("accuracy", ev["accuracy"]),
+        "last_trained":   lm.get("last_trained"),
+        "is_training":    _hospital_is_training.get(hospital_id, False),
+        "train_loss":     lm.get("train_loss"),
     }
 
 

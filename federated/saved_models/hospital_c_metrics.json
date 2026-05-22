@@ -1,0 +1,9 @@
+{
+  "hospital_id": "c",
+  "name": "Hospital C",
+  "accuracy": 85.19,
+  "patient_count": 134,
+  "train_loss": 0.4686,
+  "epochs": 20,
+  "last_trained": "2026-05-22T21:03:45.855196+00:00"
+}
