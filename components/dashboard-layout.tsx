@@ -9,7 +9,6 @@ import {
   Brain, 
   BarChart3,
   Settings,
-  Bell,
   ChevronRight
 } from "lucide-react"
 import { usePathname } from "next/navigation"
@@ -72,7 +71,7 @@ export function DashboardSidebar() {
         {/* Bottom Section */}
         <div className="p-4 border-t border-border space-y-2">
           <Link
-            href="#"
+            href="/settings"
             className="flex items-center gap-3 px-4 py-3 rounded-xl text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-all duration-300"
           >
             <Settings className="h-5 w-5" />
@@ -105,13 +104,6 @@ export function DashboardHeader() {
         </div>
 
         <div className="flex items-center gap-4">
-          <button className="relative p-2 rounded-lg hover:bg-secondary/50 transition-colors">
-            <Bell className="h-5 w-5 text-muted-foreground" />
-            <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-primary animate-pulse" />
-          </button>
-          <div className="h-8 w-8 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-sm font-bold text-primary-foreground">
-            A
-          </div>
         </div>
       </div>
     </motion.header>

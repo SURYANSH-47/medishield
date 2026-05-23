@@ -18,10 +18,13 @@ import {
   Dna,
   WifiOff,
   BarChart2,
+  Stethoscope,
 } from "lucide-react"
 
-import { predict } from "@/lib/api"
+import { predict, getClinicalSupport } from "@/lib/api"
+import type { ClinicalSupportResponse } from "@/lib/api"
 import { savePrediction } from "@/lib/prediction-store"
+import { ClinicalSupportPanel } from "@/components/clinical-support-panel"
 
 // ---------------------------------------------------------------------------
 // Types
@@ -56,7 +59,11 @@ interface ApiResponse {
   risk_level: "LOW" | "MEDIUM" | "HIGH"
   top_factors: string[]                    // SHAP-derived feature names
   shap_values?: Record<string, number>     // per-feature SHAP contributions
+  shap_values_dict?: Record<string, number> // keyed SHAP dict
   probability_percent?: number             // optional probability 0-100
+  // federated context
+  federated_round?: number
+  global_accuracy?: number
 }
 
 /** Internal display model derived from the API response */
@@ -412,6 +419,9 @@ export function PredictionForm() {
   const [result, setResult]     = useState<PredictionResult | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError]       = useState<string | null>(null)
+  // Clinical Support AI state
+  const [clinicalData, setClinicalData]     = useState<ClinicalSupportResponse | null>(null)
+  const [clinicalLoading, setClinicalLoading] = useState(false)
 
   const handleInputChange = (name: string, value: number) => {
     setFormData((prev) => ({ ...prev, [name]: value }))
@@ -424,6 +434,7 @@ export function PredictionForm() {
     setIsLoading(true)
     setResult(null)
     setError(null)
+    setClinicalData(null)
 
     // Map camelCase form fields → snake_case API fields
     const requestBody = {
@@ -457,6 +468,31 @@ export function PredictionForm() {
         response:  data,
         timestamp: Date.now(),
       })
+
+      // ── Clinical Support AI — call in background ────────────────────────
+      setClinicalLoading(true)
+      try {
+        const clinicalPayload = {
+          risk_score:        data.risk_score,
+          risk_level:        data.risk_level,
+          top_factors:       data.top_factors,
+          shap_values_dict:  data.shap_values_dict,
+          glucose:           formData.glucose,
+          bmi:               formData.bmi,
+          blood_pressure:    formData.bloodPressure,
+          age:               formData.age,
+          insulin:           formData.insulin,
+          pregnancies:       formData.pregnancies,
+          federated_round:   (data as any).federated_round,
+          global_accuracy:   (data as any).global_accuracy,
+        }
+        const support = await getClinicalSupport(clinicalPayload)
+        setClinicalData(support)
+      } catch (clinErr) {
+        console.warn("[clinical-support] Could not load recommendations:", clinErr)
+      } finally {
+        setClinicalLoading(false)
+      }
     } catch (err: unknown) {
       const msg =
         err instanceof Error ? err.message : "An unexpected error occurred."
@@ -611,6 +647,40 @@ export function PredictionForm() {
       {/* Real prediction result */}
       <AnimatePresence>
         {result && !isLoading && <PredictionResultCard result={result} />}
+      </AnimatePresence>
+
+      {/* ── AI Clinical Emergency Support Assistant ───────────────────────── */}
+      <AnimatePresence>
+        {(clinicalData || clinicalLoading) && !isLoading && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="space-y-4"
+          >
+            {/* Section divider */}
+            <motion.div
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 }}
+              className="flex items-center gap-4"
+            >
+              <div className="flex-1 h-px bg-gradient-to-r from-transparent via-border to-transparent" />
+              <div className="flex items-center gap-2 px-4 py-1.5 rounded-full glass-card border border-primary/20">
+                <Stethoscope className="h-4 w-4 text-primary" />
+                <span className="text-xs font-semibold text-primary uppercase tracking-wider">
+                  Clinical Recommendations
+                </span>
+              </div>
+              <div className="flex-1 h-px bg-gradient-to-r from-transparent via-border to-transparent" />
+            </motion.div>
+
+            <ClinicalSupportPanel
+              data={clinicalData!}
+              isLoading={clinicalLoading}
+            />
+          </motion.div>
+        )}
       </AnimatePresence>
 
     </div>
