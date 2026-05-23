@@ -436,7 +436,14 @@ export function PredictionForm() {
   const [clinicalLoading, setClinicalLoading] = useState(false)
 
   const handleInputChange = (name: string, value: number) => {
-    setFormData((prev) => ({ ...prev, [name]: value }))
+    // Find the field definition to get min/max constraints
+    const field = inputFields.find((f) => f.name === name)
+    if (!field) return
+
+    // Clamp value to min/max range
+    const clampedValue = Math.max(field.min, Math.min(field.max, value))
+
+    setFormData((prev) => ({ ...prev, [name]: clampedValue }))
   }
 
   // -------------------------------------------------------------------------
