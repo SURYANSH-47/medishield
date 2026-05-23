@@ -24,6 +24,9 @@ import {
   Zap,
 } from "lucide-react"
 import type { ClinicalSupportResponse } from "@/lib/api"
+import { useLanguage } from "@/hooks/use-language"
+import { getTranslation, type TranslationDict } from "@/lib/translations"
+import { LanguageSelector } from "@/components/language-selector"
 
 // ---------------------------------------------------------------------------
 // Types
@@ -273,6 +276,8 @@ function LoadingSkeleton() {
 // ---------------------------------------------------------------------------
 
 export function ClinicalSupportPanel({ data, isLoading }: ClinicalSupportPanelProps) {
+  const { language } = useLanguage()
+
   if (isLoading) return <LoadingSkeleton />
   if (!data) return null
 
@@ -284,189 +289,231 @@ export function ClinicalSupportPanel({ data, isLoading }: ClinicalSupportPanelPr
   const isCritical = severity === "CRITICAL"
   const isHigh = severity === "HIGH"
 
+  // Get translated labels
+  const t = (key: keyof TranslationDict) => getTranslation(language, key)
+
+  // Map priority level to translated label
+  const priorityLabel = {
+    ROUTINE: t("routinePriority"),
+    ELEVATED: t("elevatedPriority"),
+    URGENT: t("urgentPriority"),
+    EMERGENCY: t("emergencyPriority"),
+  }[priority]
+
+  const priorityDescription = {
+    ROUTINE: t("routineDescription"),
+    ELEVATED: t("elevatedDescription"),
+    URGENT: t("urgentDescription"),
+    EMERGENCY: t("emergencyDescription"),
+  }[priority]
+
+  // Map severity level to translated label
+  const severityLabel = {
+    LOW: t("riskLevelLow"),
+    MEDIUM: t("riskLevelMedium"),
+    HIGH: t("riskLevelHigh"),
+    CRITICAL: t("riskLevelCritical"),
+  }[severity]
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 32 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.6, ease: "easeOut" }}
-      className={`relative rounded-2xl overflow-hidden border ${cfg.borderColor} ${cfg.glowClass} ${isCritical ? cfg.pulseClass : ""}`}
+      className={`space-y-4`}
     >
-      {/* Critical pulse ring overlay */}
-      {isCritical && (
-        <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute inset-0 animate-ping-slow rounded-2xl border-2 border-red-500/20" />
-        </div>
-      )}
+      {/* ── Language Selector ───────────────────────────────────────────────── */}
+      <motion.div
+        initial={{ opacity: 0, y: -8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3 }}
+        className="flex items-center justify-between gap-4 px-2"
+      >
+        <LanguageSelector />
+      </motion.div>
 
-      {/* Background */}
-      <div
-        className={`absolute inset-0 bg-gradient-to-b ${cfg.headerGradient} pointer-events-none`}
-      />
-      <div className="absolute inset-0 glass-card pointer-events-none" />
+      {/* ── Main Panel ─────────────────────────────────────────────────────── */}
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.4, ease: "easeOut" }}
+        key={language}
+        className={`relative rounded-2xl overflow-hidden border ${cfg.borderColor} ${cfg.glowClass} ${isCritical ? cfg.pulseClass : ""}`}
+      >
+        {/* Critical pulse ring overlay */}
+        {isCritical && (
+          <div className="absolute inset-0 pointer-events-none">
+            <div className="absolute inset-0 animate-ping-slow rounded-2xl border-2 border-red-500/20" />
+          </div>
+        )}
 
-      <div className="relative z-10 p-6 space-y-6">
-        {/* ── Header ───────────────────────────────────────────────────────── */}
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <div
-              className={`relative p-3 rounded-xl ${cfg.badgeBg} border ${cfg.borderColor} flex-shrink-0`}
-            >
-              <Stethoscope className={`h-6 w-6 ${cfg.textColor}`} />
-              {(isCritical || isHigh) && (
-                <span className="absolute -top-1 -right-1 h-3 w-3 rounded-full bg-red-500 animate-ping" />
-              )}
-            </div>
-            <div>
-              <div className="flex items-center gap-2 mb-1">
-                <h2 className="text-xl font-bold text-foreground">
-                  AI Clinical Emergency Support Assistant
-                </h2>
+        {/* Background */}
+        <div
+          className={`absolute inset-0 bg-gradient-to-b ${cfg.headerGradient} pointer-events-none`}
+        />
+        <div className="absolute inset-0 glass-card pointer-events-none" />
+
+        <div className="relative z-10 p-6 space-y-6">
+          {/* ── Header ───────────────────────────────────────────────────────── */}
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <div
+                className={`relative p-3 rounded-xl ${cfg.badgeBg} border ${cfg.borderColor} flex-shrink-0`}
+              >
+                <Stethoscope className={`h-6 w-6 ${cfg.textColor}`} />
+                {(isCritical || isHigh) && (
+                  <span className="absolute -top-1 -right-1 h-3 w-3 rounded-full bg-red-500 animate-ping" />
+                )}
               </div>
-              <p className="text-xs text-muted-foreground">
-                Nurse Assistance Intelligence Layer · Clinical Decision Support
+              <div>
+                <div className="flex items-center gap-2 mb-1">
+                  <h2 className="text-xl font-bold text-foreground">
+                    AI Clinical Emergency Support Assistant
+                  </h2>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Nurse Assistance Intelligence Layer · Clinical Decision Support
+                </p>
+              </div>
+            </div>
+
+            {/* Severity badge */}
+            <motion.div
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              transition={{ type: "spring", stiffness: 260, damping: 18, delay: 0.2 }}
+              className={`flex-shrink-0 flex items-center gap-2 px-4 py-2 rounded-full 
+                ${cfg.badgeBg} border ${cfg.borderColor}`}
+            >
+              <SeverityIcon className={`h-4 w-4 ${cfg.textColor}`} />
+              <span className={`text-sm font-bold ${cfg.textColor}`}>{severityLabel}</span>
+            </motion.div>
+          </div>
+
+          {/* ── Priority + Contributors row ───────────────────────────────────── */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Emergency priority */}
+            <div className="glass rounded-xl p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <PriorityIcon className={`h-4 w-4 ${cfg.textColor}`} />
+                <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                  {t("emergencyPriorityTitle")}
+                </span>
+              </div>
+              <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-bold ${cfg.priorityBg}`}>
+                {priorityLabel}
+              </div>
+              <p className="text-xs text-muted-foreground mt-2">
+                {priorityDescription}
               </p>
+            </div>
+
+            {/* Primary contributors */}
+            <div className="glass rounded-xl p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <Activity className={`h-4 w-4 ${cfg.textColor}`} />
+                <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                  {t("primaryRiskContributorsTitle")}
+                </span>
+              </div>
+              <ContributorBadges factors={data.primary_contributors} />
             </div>
           </div>
 
-          {/* Severity badge */}
+          {/* ── AI Summary ───────────────────────────────────────────────────── */}
           <motion.div
-            initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
-            transition={{ type: "spring", stiffness: 260, damping: 18, delay: 0.2 }}
-            className={`flex-shrink-0 flex items-center gap-2 px-4 py-2 rounded-full 
-              ${cfg.badgeBg} border ${cfg.borderColor}`}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+            className={`rounded-xl p-5 ${cfg.badgeBg} border ${cfg.borderColor}`}
           >
-            <SeverityIcon className={`h-4 w-4 ${cfg.textColor}`} />
-            <span className={`text-sm font-bold ${cfg.textColor}`}>{cfg.label}</span>
+            <div className="flex items-start gap-3">
+              <div className={`p-2 rounded-lg bg-white/8 flex-shrink-0 mt-0.5`}>
+                <Stethoscope className={`h-4 w-4 ${cfg.textColor}`} />
+              </div>
+              <div>
+                <h3 className="text-sm font-semibold text-foreground mb-2">
+                  {t("aiClinicalsummaryTitle")}
+                </h3>
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  {data.ai_summary}
+                </p>
+              </div>
+            </div>
           </motion.div>
-        </div>
 
-        {/* ── Priority + Contributors row ───────────────────────────────────── */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Emergency priority */}
-          <div className="glass rounded-xl p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <PriorityIcon className={`h-4 w-4 ${cfg.textColor}`} />
-              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                Emergency Priority Level
-              </span>
-            </div>
-            <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-bold ${cfg.priorityBg}`}>
-              {priority}
-            </div>
-            <p className="text-xs text-muted-foreground mt-2">
-              {priority === "EMERGENCY" && "Activate rapid response team immediately"}
-              {priority === "URGENT" && "Immediate physician evaluation required"}
-              {priority === "ELEVATED" && "Physician review advised within 48–72 hrs"}
-              {priority === "ROUTINE" && "Standard monitoring schedule applies"}
-            </p>
+          {/* ── Accordion sections ───────────────────────────────────────────── */}
+          <div className="space-y-3">
+            {/* Recommended Actions */}
+            <AccordionSection
+              title={t("recommendedActionsTitle")}
+              icon={ClipboardList}
+              items={data.recommendations}
+              iconColor={cfg.textColor}
+              accentColor={cfg.badgeBg}
+              defaultOpen={true}
+            />
+
+            {/* Monitoring Checklist */}
+            <AccordionSection
+              title={t("monitoringChecklistTitle")}
+              icon={Activity}
+              items={data.monitoring_checklist}
+              iconColor="text-cyan-400"
+              accentColor="bg-cyan-500/10"
+              defaultOpen={isHigh || isCritical}
+              itemPrefix={<CheckCircle2 className="h-4 w-4 text-cyan-500/70 flex-shrink-0 mt-0.5" />}
+            />
+
+            {/* Escalation Criteria */}
+            <AccordionSection
+              title={t("escalationWarningTitle")}
+              icon={Siren}
+              items={data.escalation_criteria}
+              iconColor="text-rose-400"
+              accentColor="bg-rose-500/10"
+              defaultOpen={isHigh || isCritical}
+              itemPrefix={<XCircle className="h-4 w-4 text-rose-500/70 flex-shrink-0 mt-0.5" />}
+            />
           </div>
 
-          {/* Primary contributors */}
-          <div className="glass rounded-xl p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <Activity className={`h-4 w-4 ${cfg.textColor}`} />
-              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                Primary Risk Contributors
-              </span>
-            </div>
-            <ContributorBadges factors={data.primary_contributors} />
-          </div>
-        </div>
-
-        {/* ── AI Summary ───────────────────────────────────────────────────── */}
-        <motion.div
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
-          className={`rounded-xl p-5 ${cfg.badgeBg} border ${cfg.borderColor}`}
-        >
-          <div className="flex items-start gap-3">
-            <div className={`p-2 rounded-lg bg-white/8 flex-shrink-0 mt-0.5`}>
-              <Stethoscope className={`h-4 w-4 ${cfg.textColor}`} />
-            </div>
-            <div>
-              <h3 className="text-sm font-semibold text-foreground mb-2">
-                AI Clinical Summary
+          {/* ── Next Steps Timeline ──────────────────────────────────────────── */}
+          <div className="glass rounded-xl p-5">
+            <div className="flex items-center gap-2 mb-4">
+              <ArrowUpRight className={`h-4 w-4 ${cfg.textColor}`} />
+              <h3 className="text-sm font-semibold text-foreground">
+                {t("suggestedNextStepsTitle")}
               </h3>
-              <p className="text-sm text-muted-foreground leading-relaxed">
-                {data.ai_summary}
-              </p>
+            </div>
+            <NextStepTimeline steps={data.next_steps} severity={severity} />
+          </div>
+
+          {/* ── Federated attribution footer ─────────────────────────────────── */}
+          <div className="rounded-xl border border-primary/15 bg-primary/5 p-4">
+            <div className="flex items-start gap-3">
+              <Network className="h-4 w-4 text-primary flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="text-xs font-semibold text-primary mb-0.5">
+                  {t("federated")}
+                </p>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  {data.federated_note}
+                </p>
+              </div>
             </div>
           </div>
-        </motion.div>
 
-        {/* ── Accordion sections ───────────────────────────────────────────── */}
-        <div className="space-y-3">
-          {/* Recommended Actions */}
-          <AccordionSection
-            title="Recommended Clinical Actions"
-            icon={ClipboardList}
-            items={data.recommendations}
-            iconColor={cfg.textColor}
-            accentColor={cfg.badgeBg}
-            defaultOpen={true}
-          />
-
-          {/* Monitoring Checklist */}
-          <AccordionSection
-            title="Monitoring Checklist"
-            icon={Activity}
-            items={data.monitoring_checklist}
-            iconColor="text-cyan-400"
-            accentColor="bg-cyan-500/10"
-            defaultOpen={isHigh || isCritical}
-            itemPrefix={<CheckCircle2 className="h-4 w-4 text-cyan-500/70 flex-shrink-0 mt-0.5" />}
-          />
-
-          {/* Escalation Criteria */}
-          <AccordionSection
-            title="Escalation Warning Criteria"
-            icon={Siren}
-            items={data.escalation_criteria}
-            iconColor="text-rose-400"
-            accentColor="bg-rose-500/10"
-            defaultOpen={isHigh || isCritical}
-            itemPrefix={<XCircle className="h-4 w-4 text-rose-500/70 flex-shrink-0 mt-0.5" />}
-          />
-        </div>
-
-        {/* ── Next Steps Timeline ──────────────────────────────────────────── */}
-        <div className="glass rounded-xl p-5">
-          <div className="flex items-center gap-2 mb-4">
-            <ArrowUpRight className={`h-4 w-4 ${cfg.textColor}`} />
-            <h3 className="text-sm font-semibold text-foreground">
-              Suggested Next Steps
-            </h3>
-          </div>
-          <NextStepTimeline steps={data.next_steps} severity={severity} />
-        </div>
-
-        {/* ── Federated attribution footer ─────────────────────────────────── */}
-        <div className="rounded-xl border border-primary/15 bg-primary/5 p-4">
-          <div className="flex items-start gap-3">
-            <Network className="h-4 w-4 text-primary flex-shrink-0 mt-0.5" />
-            <div>
-              <p className="text-xs font-semibold text-primary mb-0.5">
-                Federated Learning Intelligence
-              </p>
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                {data.federated_note}
+          {/* ── Disclaimer ───────────────────────────────────────────────────── */}
+          <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-4">
+            <div className="flex items-start gap-3">
+              <Info className="h-4 w-4 text-amber-400 flex-shrink-0 mt-0.5" />
+              <p className="text-xs text-amber-200/70 leading-relaxed">
+                {data.disclaimer}
               </p>
             </div>
           </div>
         </div>
-
-        {/* ── Disclaimer ───────────────────────────────────────────────────── */}
-        <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-4">
-          <div className="flex items-start gap-3">
-            <Info className="h-4 w-4 text-amber-400 flex-shrink-0 mt-0.5" />
-            <p className="text-xs text-amber-200/70 leading-relaxed">
-              {data.disclaimer}
-            </p>
-          </div>
-        </div>
-      </div>
+      </motion.div>
     </motion.div>
   )
 }

@@ -1,0 +1,12 @@
+{
+  "rounds": [
+    {
+      "timestamp": "2026-05-22T23:35:56.308800+00:00",
+      "round": 12,
+      "accuracy": 68.7,
+      "fairness_score": 94.2,
+      "total_predictions": 413,
+      "high_risk_patients": 116
+    }
+  ]
+}
