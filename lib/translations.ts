@@ -319,3 +319,59 @@ export const AVAILABLE_LANGUAGES: Array<{ code: Language; name: string; nativeNa
   { code: "hi", name: "Hindi", nativeName: "हिन्दी" },
   { code: "kn", name: "Kannada", nativeName: "ಕನ್ನಡ" },
 ]
+
+// ============================================================================
+// Clinical Text — Reverse Lookup (English → TranslationDict key)
+// ============================================================================
+
+const EN_TO_KEY: Partial<Record<string, keyof TranslationDict>> = {
+  // Clinical Recommendations
+  "Immediate physician review recommended":  "immediatePhysicianReview",
+  "Monitor blood glucose immediately":       "monitorBloodGlucoseImmediately",
+  "Observe blood pressure closely":          "observeBloodPressureClosely",
+  "Continuous monitoring advised":           "continuousMonitoringAdvised",
+  "Emergency escalation required":           "emergencyEscalationRequired",
+  "Prepare diabetic management workflow":    "prepareDiabeticManagementWorkflow",
+  "Watch for dehydration symptoms":          "watchForDehydrationSymptoms",
+  "Monitor oxygen saturation":               "monitorOxygenSaturation",
+  "Schedule physician consultation":         "schedulePhysicianConsultation",
+
+  // Monitoring Checklist
+  "Check glucose every 30 minutes":          "checkGlucoseEvery30Minutes",
+  "Monitor blood pressure":                  "monitorBloodPressure",
+  "Observe patient vitals":                  "observePatientVitals",
+  "Watch for confusion or dizziness":        "watchForConfusionDizziness",
+
+  // Escalation Warnings
+  "Chest pain":                              "chestPain",
+  "Severe dizziness":                        "severeDizziness",
+  "Oxygen drop":                             "oxygenDrop",
+  "Loss of consciousness":                   "lossOfConsciousness",
+
+  // Next Steps
+  "Immediate action required":               "nextStepImmediate",
+  "Consult with physician":                  "nextStepPhysician",
+  "Continue close monitoring":               "nextStepMonitoring",
+  "Ensure adequate rest":                    "nextStepRest",
+  "Review dietary habits":                   "nextStepDiet",
+  "Increase physical activity":              "nextStepExercise",
+}
+
+/**
+ * Translate a single clinical string from English to the target language.
+ * Falls back to the original English string if no dictionary entry exists.
+ */
+export function translateClinicalText(language: Language, englishText: string): string {
+  if (language === "en") return englishText
+  const key = EN_TO_KEY[englishText]
+  if (!key) return englishText
+  return getTranslation(language, key)
+}
+
+/**
+ * Translate an array of clinical strings (recommendations, checklist, etc.)
+ */
+export function translateClinicalItems(language: Language, items: string[]): string[] {
+  if (language === "en") return items
+  return items.map((item) => translateClinicalText(language, item))
+}

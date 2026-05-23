@@ -25,7 +25,7 @@ import {
 } from "lucide-react"
 import type { ClinicalSupportResponse } from "@/lib/api"
 import { useLanguage } from "@/hooks/use-language"
-import { getTranslation, type TranslationDict } from "@/lib/translations"
+import { getTranslation, translateClinicalItems, type TranslationDict } from "@/lib/translations"
 import { LanguageSelector } from "@/components/language-selector"
 
 // ---------------------------------------------------------------------------
@@ -292,6 +292,12 @@ export function ClinicalSupportPanel({ data, isLoading }: ClinicalSupportPanelPr
   // Get translated labels
   const t = (key: keyof TranslationDict) => getTranslation(language, key)
 
+  // Translate structured API response arrays using dictionary lookup
+  const recommendations   = translateClinicalItems(language, data.recommendations)
+  const monitoringList    = translateClinicalItems(language, data.monitoring_checklist)
+  const escalationList    = translateClinicalItems(language, data.escalation_criteria)
+  const nextStepsList     = translateClinicalItems(language, data.next_steps)
+
   // Map priority level to translated label
   const priorityLabel = {
     ROUTINE: t("routinePriority"),
@@ -448,7 +454,7 @@ export function ClinicalSupportPanel({ data, isLoading }: ClinicalSupportPanelPr
             <AccordionSection
               title={t("recommendedActionsTitle")}
               icon={ClipboardList}
-              items={data.recommendations}
+              items={recommendations}
               iconColor={cfg.textColor}
               accentColor={cfg.badgeBg}
               defaultOpen={true}
@@ -458,7 +464,7 @@ export function ClinicalSupportPanel({ data, isLoading }: ClinicalSupportPanelPr
             <AccordionSection
               title={t("monitoringChecklistTitle")}
               icon={Activity}
-              items={data.monitoring_checklist}
+              items={monitoringList}
               iconColor="text-cyan-400"
               accentColor="bg-cyan-500/10"
               defaultOpen={isHigh || isCritical}
@@ -469,7 +475,7 @@ export function ClinicalSupportPanel({ data, isLoading }: ClinicalSupportPanelPr
             <AccordionSection
               title={t("escalationWarningTitle")}
               icon={Siren}
-              items={data.escalation_criteria}
+              items={escalationList}
               iconColor="text-rose-400"
               accentColor="bg-rose-500/10"
               defaultOpen={isHigh || isCritical}
@@ -485,7 +491,7 @@ export function ClinicalSupportPanel({ data, isLoading }: ClinicalSupportPanelPr
                 {t("suggestedNextStepsTitle")}
               </h3>
             </div>
-            <NextStepTimeline steps={data.next_steps} severity={severity} />
+            <NextStepTimeline steps={nextStepsList} severity={severity} />
           </div>
 
           {/* ── Federated attribution footer ─────────────────────────────────── */}

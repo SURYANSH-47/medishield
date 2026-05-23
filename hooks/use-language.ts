@@ -1,12 +1,16 @@
+"use client"
+
 /**
  * Language Context & Hook
  * =======================
- * 
- * Manages multilingual state for clinical support recommendations
- * Persists language selection in localStorage
+ *
+ * Manages multilingual state for clinical support recommendations.
+ * Persists language selection in localStorage across sessions.
+ * Defaults to "en" on first render to avoid hydration mismatch.
+ *
+ * NOTE: Written with React.createElement (no JSX) so this file can
+ * stay as .ts rather than .tsx.
  */
-
-"use client"
 
 import React, { createContext, useContext, useState, useEffect } from "react"
 import type { Language } from "@/lib/translations"
@@ -31,16 +35,15 @@ const LanguageContext = createContext<LanguageContextType | undefined>(undefined
 // ============================================================================
 
 export function LanguageProvider({ children }: { children: React.ReactNode }) {
+  // Default to "en" — safe for SSR, no hydration mismatch
   const [language, setLanguageState] = useState<Language>("en")
-  const [mounted, setMounted] = useState(false)
 
-  // Load language from localStorage on mount
+  // Restore persisted language on the client after first paint
   useEffect(() => {
-    const savedLanguage = localStorage.getItem("medishield-language") as Language | null
-    if (savedLanguage && ["en", "hi", "kn"].includes(savedLanguage)) {
-      setLanguageState(savedLanguage)
+    const saved = localStorage.getItem("medishield-language") as Language | null
+    if (saved && (["en", "hi", "kn"] as Language[]).includes(saved)) {
+      setLanguageState(saved)
     }
-    setMounted(true)
   }, [])
 
   const setLanguage = (lang: Language) => {
@@ -48,15 +51,11 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem("medishield-language", lang)
   }
 
-  // Prevent hydration mismatch
-  if (!mounted) {
-    return <>{children}</>
-  }
-
-  return (
-    <LanguageContext.Provider value={{ language, setLanguage }}>
-      {children}
-    </LanguageContext.Provider>
+  // Use React.createElement so this file remains .ts (no JSX extension needed)
+  return React.createElement(
+    LanguageContext.Provider,
+    { value: { language, setLanguage } },
+    children
   )
 }
 

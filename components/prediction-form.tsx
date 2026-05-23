@@ -25,6 +25,8 @@ import { predict, getClinicalSupport } from "@/lib/api"
 import type { ClinicalSupportResponse } from "@/lib/api"
 import { savePrediction } from "@/lib/prediction-store"
 import { ClinicalSupportPanel } from "@/components/clinical-support-panel"
+import { useLanguage } from "@/hooks/use-language"
+import { getTranslation, type TranslationDict } from "@/lib/translations"
 
 // ---------------------------------------------------------------------------
 // Types
@@ -152,24 +154,36 @@ function InputField({
   )
 }
 
-/** Colour-coded risk level badge */
+/** Colour-coded risk level badge — label translated to the active clinical language */
 function RiskBadge({ level }: { level: "LOW" | "MEDIUM" | "HIGH" }) {
+  const { language } = useLanguage()
+
   const styles = {
     LOW:    { bg: "bg-success/20",     border: "border-success",     text: "text-success",     icon: CheckCircle  },
     MEDIUM: { bg: "bg-warning/20",     border: "border-warning",     text: "text-warning",     icon: Info         },
     HIGH:   { bg: "bg-destructive/20", border: "border-destructive", text: "text-destructive", icon: AlertTriangle },
   }
+
+  const riskLabelKey: Record<"LOW" | "MEDIUM" | "HIGH", keyof TranslationDict> = {
+    LOW:    "riskLevelLow",
+    MEDIUM: "riskLevelMedium",
+    HIGH:   "riskLevelHigh",
+  }
+
   const s = styles[level]
   const Icon = s.icon
+  const label = getTranslation(language, riskLabelKey[level])
+
   return (
     <motion.div
-      initial={{ scale: 0 }}
-      animate={{ scale: 1 }}
+      key={language}
+      initial={{ scale: 0.9, opacity: 0 }}
+      animate={{ scale: 1, opacity: 1 }}
       transition={{ type: "spring", stiffness: 200, damping: 15 }}
       className={`inline-flex items-center gap-2 px-4 py-2 rounded-full ${s.bg} border ${s.border} shadow-lg`}
     >
       <Icon className={`h-5 w-5 ${s.text}`} />
-      <span className={`font-semibold ${s.text}`}>{level} RISK</span>
+      <span className={`font-semibold ${s.text}`}>{label}</span>
     </motion.div>
   )
 }
