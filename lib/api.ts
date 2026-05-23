@@ -10,11 +10,11 @@
 // Configuration
 // ---------------------------------------------------------------------------
 
+// Priority: explicit env var → localhost dev fallback
+// In production (Vercel + Railway), NEXT_PUBLIC_API_URL must be set.
 const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL ||
-  (typeof window !== "undefined"
-    ? `http://${window.location.hostname}:8000`
-    : "http://127.0.0.1:8000")
+  process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") ||
+  "http://127.0.0.1:8000"
 
 /** Maximum number of retry attempts for failed requests */
 const MAX_RETRIES = 2

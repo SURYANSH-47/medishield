@@ -1,0 +1,27 @@
+# MediShield AI — Python Backend Dependencies
+# =============================================
+# Install: pip install -r requirements.txt
+# Python version: 3.11.x (see runtime.txt)
+
+# ── Web framework ─────────────────────────────────────────────────────────────
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+python-multipart==0.0.6
+pydantic==2.5.2
+
+# ── ML / Deep Learning ────────────────────────────────────────────────────────
+# CPU-only torch is sufficient (Railway has no GPU)
+# For GPU environments, replace with the appropriate CUDA wheel.
+torch==2.1.2
+numpy==1.26.2
+pandas==2.1.4
+scikit-learn==1.3.2
+
+# ── Explainability ────────────────────────────────────────────────────────────
+shap==0.44.0
+
+# ── Federated Learning ────────────────────────────────────────────────────────
+flwr==1.6.0
+
+# ── Utilities ─────────────────────────────────────────────────────────────────
+requests==2.31.0

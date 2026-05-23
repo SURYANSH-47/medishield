@@ -28,6 +28,7 @@ import warnings
 import numpy as np
 import torch
 import pandas as pd
+from pathlib import Path
 
 from datetime import datetime, timezone
 from contextlib import asynccontextmanager
@@ -38,8 +39,8 @@ from pydantic import BaseModel
 from typing import Optional, Dict, List
 
 # ── Make sure our ML modules are importable ───────────────────────────────────
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, BASE_DIR)
+BASE_DIR = Path(__file__).resolve().parent
+sys.path.insert(0, str(BASE_DIR))
 
 from preprocess import preprocess
 from model import DiabetesRiskPredictor
@@ -49,17 +50,17 @@ warnings.filterwarnings("ignore")
 # ─────────────────────────────────────────────────────────────────────────────
 # Paths
 # ─────────────────────────────────────────────────────────────────────
-MODEL_PATH   = os.path.join(BASE_DIR, "saved_model", "global_model.pth")
-METRICS_PATH = os.path.join(BASE_DIR, "saved_model", "metrics.json")
-DATA_PATH    = os.path.join(BASE_DIR, "dataset", "diabetes.csv")
+MODEL_PATH   = BASE_DIR / "saved_model" / "global_model.pth"
+METRICS_PATH = BASE_DIR / "saved_model" / "metrics.json"
+DATA_PATH    = BASE_DIR / "dataset" / "diabetes.csv"
 
 # ── Hospital CSVs — canonical source is federated/data/ ──────────────────────
 # This is the directory the user edits directly and that federated/client.py
 # reads from.  ml/dataset/hospital_*.csv are a stale copy; never use them.
-_FEDERATED_DATA_DIR = os.path.join(os.path.dirname(BASE_DIR), "federated", "data")
-HOSP_A_PATH  = os.path.join(_FEDERATED_DATA_DIR, "hospital_a.csv")
-HOSP_B_PATH  = os.path.join(_FEDERATED_DATA_DIR, "hospital_b.csv")
-HOSP_C_PATH  = os.path.join(_FEDERATED_DATA_DIR, "hospital_c.csv")
+_FEDERATED_DATA_DIR = BASE_DIR.parent / "federated" / "data"
+HOSP_A_PATH  = _FEDERATED_DATA_DIR / "hospital_a.csv"
+HOSP_B_PATH  = _FEDERATED_DATA_DIR / "hospital_b.csv"
+HOSP_C_PATH  = _FEDERATED_DATA_DIR / "hospital_c.csv"
 
 # Column order MUST match preprocess.py
 FEATURE_NAMES = [
@@ -133,25 +134,25 @@ def _load_model_and_explainer() -> bool:
 
 def _ensure_hospital_datasets():
     """Ensure hospital_a.csv, hospital_b.csv, hospital_c.csv exist."""
-    dataset_dir = os.path.join(BASE_DIR, "dataset")
-    os.makedirs(dataset_dir, exist_ok=True)
-    
-    h_a_path = os.path.join(dataset_dir, "hospital_a.csv")
-    h_b_path = os.path.join(dataset_dir, "hospital_b.csv")
-    h_c_path = os.path.join(dataset_dir, "hospital_c.csv")
-    
-    if not (os.path.exists(h_a_path) and os.path.exists(h_b_path) and os.path.exists(h_c_path)):
+    dataset_dir = BASE_DIR / "dataset"
+    dataset_dir.mkdir(parents=True, exist_ok=True)
+
+    h_a_path = dataset_dir / "hospital_a.csv"
+    h_b_path = dataset_dir / "hospital_b.csv"
+    h_c_path = dataset_dir / "hospital_c.csv"
+
+    if not (h_a_path.exists() and h_b_path.exists() and h_c_path.exists()):
         print("[api] Splitting diabetes.csv into hospital datasets...")
-        if os.path.exists(DATA_PATH):
+        if DATA_PATH.exists():
             import pandas as pd
             df = pd.read_csv(DATA_PATH)
             n_rows = len(df)
             part = n_rows // 3
-            
+
             df_a = df.iloc[:part]
             df_b = df.iloc[part:2*part]
             df_c = df.iloc[2*part:]
-            
+
             df_a.to_csv(h_a_path, index=False)
             df_b.to_csv(h_b_path, index=False)
             df_c.to_csv(h_c_path, index=False)
@@ -161,12 +162,12 @@ def _ensure_hospital_datasets():
 
 def _sync_combined_dataset():
     """Concatenate hospital_a.csv, hospital_b.csv, hospital_c.csv into diabetes.csv."""
-    dataset_dir = os.path.join(BASE_DIR, "dataset")
-    h_a_path = os.path.join(dataset_dir, "hospital_a.csv")
-    h_b_path = os.path.join(dataset_dir, "hospital_b.csv")
-    h_c_path = os.path.join(dataset_dir, "hospital_c.csv")
-    
-    if os.path.exists(h_a_path) and os.path.exists(h_b_path) and os.path.exists(h_c_path):
+    dataset_dir = BASE_DIR / "dataset"
+    h_a_path = dataset_dir / "hospital_a.csv"
+    h_b_path = dataset_dir / "hospital_b.csv"
+    h_c_path = dataset_dir / "hospital_c.csv"
+
+    if h_a_path.exists() and h_b_path.exists() and h_c_path.exists():
         import pandas as pd
         df_a = pd.read_csv(h_a_path)
         df_b = pd.read_csv(h_b_path)
@@ -273,8 +274,8 @@ def _evaluate_dataset(csv_path: str) -> dict:
 
 def _init_metrics_file():
     """Create metrics.json with initial values if it doesn't exist."""
-    os.makedirs(os.path.dirname(METRICS_PATH), exist_ok=True)
-    if not os.path.exists(METRICS_PATH):
+    METRICS_PATH.parent.mkdir(parents=True, exist_ok=True)
+    if not METRICS_PATH.exists():
         _save_metrics(
             test_acc=61.25, train_acc=53.61, loss=0.7662,
             epochs=50, round_num=1
@@ -302,9 +303,14 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# CORS — allow all origins in development; restrict to ALLOWED_ORIGINS in production.
+# Set ALLOWED_ORIGINS=https://your-app.vercel.app on Railway to lock it down.
+_raw_origins = os.environ.get("ALLOWED_ORIGINS", "")
+_allowed_origins: list = [o.strip() for o in _raw_origins.split(",") if o.strip()] or ["*"]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],   # allow Next.js dev server on any port
+    allow_origins=_allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -342,11 +348,11 @@ def _get_hospital_counts() -> Dict[str, int]:
 def _save_metrics(test_acc: float, train_acc: float, loss: float,
                   epochs: int, round_num: int) -> dict:
     """Persist training metrics to metrics.json."""
-    os.makedirs(os.path.dirname(METRICS_PATH), exist_ok=True)
-    
+    METRICS_PATH.parent.mkdir(parents=True, exist_ok=True)
+
     # Load existing history if present
     history = []
-    if os.path.exists(METRICS_PATH):
+    if METRICS_PATH.exists():
         try:
             with open(METRICS_PATH) as f:
                 old_data = json.load(f)
@@ -679,14 +685,14 @@ def add_patient(req: AddPatientRequest):
     Append a new labelled patient row to the CSV dataset of a specific hospital.
     """
     hospital_name = req.hospital
-    dataset_dir = os.path.join(BASE_DIR, "dataset")
-    
+    dataset_dir = BASE_DIR / "dataset"
+
     if "Hospital B" in hospital_name:
-        target_path = os.path.join(dataset_dir, "hospital_b.csv")
+        target_path = dataset_dir / "hospital_b.csv"
     elif "Hospital C" in hospital_name:
-        target_path = os.path.join(dataset_dir, "hospital_c.csv")
+        target_path = dataset_dir / "hospital_c.csv"
     else:
-        target_path = os.path.join(dataset_dir, "hospital_a.csv")
+        target_path = dataset_dir / "hospital_a.csv"
 
     fieldnames = [
         "Pregnancies", "Glucose", "BloodPressure", "SkinThickness",
@@ -933,7 +939,7 @@ def retrain():
 _hospital_is_training: Dict[str, bool] = {"a": False, "b": False, "c": False}
 
 # Where local hospital model weights are saved (mirrors federated/client.py)
-_SAVED_MODELS_DIR = os.path.join(os.path.dirname(BASE_DIR), "federated", "saved_models")
+_SAVED_MODELS_DIR = BASE_DIR.parent / "federated" / "saved_models"
 
 
 def _hospital_cfg(hid: str) -> dict:
@@ -946,8 +952,8 @@ def _hospital_cfg(hid: str) -> dict:
             "full_name": "Hospital A — Urban Wellness Clinic",
             "specialty": "Preventive Care",
             "csv_path": HOSP_A_PATH,
-            "model_path":   os.path.join(_SAVED_MODELS_DIR, "hospital_a_local.pth"),
-            "metrics_path": os.path.join(_SAVED_MODELS_DIR, "hospital_a_metrics.json"),
+            "model_path":   _SAVED_MODELS_DIR / "hospital_a_local.pth",
+            "metrics_path": _SAVED_MODELS_DIR / "hospital_a_metrics.json",
         },
         "b": {
             "id": "b",
@@ -955,8 +961,8 @@ def _hospital_cfg(hid: str) -> dict:
             "full_name": "Hospital B — Senior Care Hospital",
             "specialty": "Geriatric Medicine",
             "csv_path": HOSP_B_PATH,
-            "model_path":   os.path.join(_SAVED_MODELS_DIR, "hospital_b_local.pth"),
-            "metrics_path": os.path.join(_SAVED_MODELS_DIR, "hospital_b_metrics.json"),
+            "model_path":   _SAVED_MODELS_DIR / "hospital_b_local.pth",
+            "metrics_path": _SAVED_MODELS_DIR / "hospital_b_metrics.json",
         },
         "c": {
             "id": "c",
@@ -964,8 +970,8 @@ def _hospital_cfg(hid: str) -> dict:
             "full_name": "Hospital C — Metro General Hospital",
             "specialty": "General Medicine",
             "csv_path": HOSP_C_PATH,
-            "model_path":   os.path.join(_SAVED_MODELS_DIR, "hospital_c_local.pth"),
-            "metrics_path": os.path.join(_SAVED_MODELS_DIR, "hospital_c_metrics.json"),
+            "model_path":   _SAVED_MODELS_DIR / "hospital_c_local.pth",
+            "metrics_path": _SAVED_MODELS_DIR / "hospital_c_metrics.json",
         },
     }
     return cfgs.get(h, cfgs["a"])
@@ -1104,7 +1110,7 @@ def _train_local_hospital_worker(hid: str):
             acc = float((preds == yte).float().mean().item()) * 100
 
         # ── Save local model weights (stays on this hospital node) ────────────
-        os.makedirs(os.path.dirname(cfg["model_path"]), exist_ok=True)
+        cfg["model_path"].parent.mkdir(parents=True, exist_ok=True)
         torch.save(local_model.state_dict(), cfg["model_path"])
 
         # ── Persist local metrics ─────────────────────────────────────────────
@@ -1117,7 +1123,7 @@ def _train_local_hospital_worker(hid: str):
             "epochs":       20,
             "last_trained": datetime.now(timezone.utc).isoformat(),
         }
-        os.makedirs(os.path.dirname(cfg["metrics_path"]), exist_ok=True)
+        cfg["metrics_path"].parent.mkdir(parents=True, exist_ok=True)
         with open(cfg["metrics_path"], "w") as f:
             json.dump(local_metrics, f, indent=2)
 
@@ -1201,8 +1207,8 @@ def hospital_add_patient(hospital_id: str, req: HospitalPatientRequest):
     }
 
     try:
-        os.makedirs(os.path.dirname(csv_path), exist_ok=True)
-        file_exists = os.path.exists(csv_path)
+        csv_path.parent.mkdir(parents=True, exist_ok=True)
+        file_exists = csv_path.exists()
 
         with open(csv_path, "a", newline="", encoding="utf-8") as f:
             writer = csv.DictWriter(f, fieldnames=fieldnames)
@@ -1307,9 +1313,9 @@ def hospital_dataset_preview(hospital_id: str, page: int = 1, per_page: int = 10
 # Every metric is derived from real data — ZERO hardcoded values.
 # =============================================================================
 
-def _get_analytics_history_path() -> str:
+def _get_analytics_history_path() -> Path:
     """Path to analytics history storage."""
-    return os.path.join(os.path.dirname(BASE_DIR), "federated", "analytics_history.json")
+    return BASE_DIR.parent / "federated" / "analytics_history.json"
 
 def _compute_risk_distribution() -> Dict[str, int]:
     """
@@ -1841,7 +1847,7 @@ def _record_analytics_round():
         history["rounds"].append(round_data)
         
         # Persist
-        os.makedirs(os.path.dirname(history_path), exist_ok=True)
+        history_path.parent.mkdir(parents=True, exist_ok=True)
         with open(history_path, "w") as f:
             json.dump(history, f, indent=2)
         

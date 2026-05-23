@@ -478,7 +478,7 @@ export function FederatedDashboard() {
         </div>
         <h3 className="text-xl font-bold text-foreground mb-2">Federated Server Unreachable</h3>
         <p className="text-sm text-muted-foreground max-w-lg mb-6">
-          Unable to establish connection with the FastAPI backend. Please ensure your Python server is running on <code className="px-1.5 py-0.5 rounded bg-secondary text-accent">http://127.0.0.1:8000</code>.
+          Unable to establish connection with the MediShield AI backend. Ensure the FastAPI server is running and <code className="px-1.5 py-0.5 rounded bg-secondary text-accent">NEXT_PUBLIC_API_URL</code> is set correctly.
         </p>
         <button
           onClick={() => fetchMetrics(true)}

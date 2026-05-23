@@ -81,8 +81,6 @@ interface PredictionResult {
 // Constants
 // ---------------------------------------------------------------------------
 
-const API_URL = "http://127.0.0.1:8000/predict"
-
 /** Maps risk level → client-side recommendation text */
 const RECOMMENDATIONS: Record<"LOW" | "MEDIUM" | "HIGH", string> = {
   LOW:
@@ -395,12 +393,12 @@ function ErrorCard({ message, onDismiss }: { message: string; onDismiss: () => v
           </h3>
           <p className="text-sm text-muted-foreground mb-4">
             {isOffline
-              ? "Cannot reach the AI backend at http://127.0.0.1:8000. Make sure the FastAPI server is running."
+              ? "Cannot reach the MediShield AI backend. Make sure the FastAPI server is running and NEXT_PUBLIC_API_URL is configured correctly."
               : message}
           </p>
           {isOffline && (
             <pre className="text-xs text-muted-foreground bg-secondary/50 rounded-lg px-4 py-3 mb-4">
-              uvicorn backend.main:app --reload
+              uvicorn ml.api:app --host 0.0.0.0 --port 8000
             </pre>
           )}
           <button

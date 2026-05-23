@@ -1,0 +1,12 @@
+# nixpacks.toml
+# ==============
+# Forces Railway / Nixpacks to treat this as a Python project
+# and NOT attempt a Node.js build (Next.js lives on Vercel, not Railway).
+
+providers = ["python"]
+
+[variables]
+PYTHONUNBUFFERED = "1"
+
+[start]
+cmd = "uvicorn ml.api:app --host 0.0.0.0 --port $PORT"
